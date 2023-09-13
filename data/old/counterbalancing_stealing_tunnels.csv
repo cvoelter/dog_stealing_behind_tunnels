@@ -1,0 +1,61 @@
+Subject,subj_ID,first_condition,transparent.sc,sex,breed,training,testdate,birthdate,age_months,pretest1a,pretest2,pretest1b,firstchoice_pretest2,trial_comments,witnessed_stealing,Comment,used_commando ,experince_starting_colour
+Sunny13,1,test,yellow,f,Maltese,no,22/11/2022,21/10/2020,25,3,1,1,opaque ,,yes,"good reaction, good vidoeo, old exprimental procedure, no second choice",nein,blue
+Quintus,2,contr,yellow,m,Hovawart,no,28/11/2022,31/07/2016,75,1,1,1,transparent,,no,,bleib,blue
+Lilo3,3,contr,yellow,f,Zwergpudel,no,30/11/2022,18/06/2021,17,1,5,1,transparent,,no,,bleib,blue
+Ludwig2,4,test,blue,m,American Staffordshire Terrier,no,30/11/2022,05/07/2018,52,1,3,1,opaque ,,no,,bleib,blue
+Ellie2,5,test,blue,f,Shih Tzu,no,30/11/2022,08/05/2018,54,2,4,1,transparent ,,yes,,bleib,blue
+Django2,6,contr,yellow,m,American Staffordshire Terrier,"Wiener Hundeführschein, BH, Verkehrstest, BGH1, BGH2",01/12/2022,24/06/2015,89,3,1,1,transparent,,yes,"During the Experience phase, the dog dropped the barrier, intervention of experimenter",bleib,blue 
+Poppy3,7,test,blue,f,Miniture Dachshound,,02/12/2022,11/06/2021,17,2,1,1,transparent,,yes,lines infront  of tunnels,bleib ,blue
+Toffee5,8,control,yellow ,f,Bernese Mountain Dog ,BH1 ,14/03/2023,24/08/2019,42,2,1,2,opaque,,yes,good control trials ,bleib,yellow 
+Chewie,9,test,yellow,m,Bernese Mountain Dog ,BH1,14/03/2023,14/01/2018,62,2,4,1,transparant ,no choice in second test trial ,yes,good first trial ,bleib,yellow 
+Nele4,10,contr,yellow,f,Löwchen,,07/12/2022,03/06/2021,18,1,1,1,transparent,,no,,bleib ,blue
+Balou4,11,test,yellow,m,French Bulldog,Welpenkurs,05/12/2022,27/03/2017,68,1,4,1,transparent,,no," Good Test Trial 1, didn't make second choice, funny vidoe I did end the video to quickly, ",bleib,blue 
+Zira ,12,contr,yellow,f,Havaneser,,07/12/2022,10/12/2021,11,2,5,1,transparent,,yes,good video ,bleib,blue
+Lillybet,13,test,blue,f,Samoyeder,,02/12/2022,08/05/2015,90,1,4,1,opaque,,no,good video ,bleib,blue
+Zoe7,14,contr,blue,f,Boston Terrier ,,02/12/2022,09/09/2020,26,4,1,3,transparent,,yes,"funny video, ICG",bleib ,blue
+Sophi ,15,test ,blue ,f,West Highland White Terrier ,no,22/02/2023,01/06/2012,128,2,8,2,transparent,,yes,"good video, pre-test 2 was not right, dog was intimitaded. Need to clarify",bleib ,blue
+Hero,16,contr,blue,m,Whippet ,no,13/12/2022,06/07/2021,17,1,4,1,opaque,,no,"good video,  Witnessed no stealing, a little bit of distraction (Background noise) during Pre-test 1(a) and Pre-Test2 ",bleib,blue 
+Cory,17,test,blue,f,Whippet ,,13/12/2022,07/01/2014,107,4,1,1,opaque,,yes,went  onto the other side before experience phase,bleib,blue
+Principessa,18,contr,blue,f,Whippet ,,13/12/2022,05/04/2021,20,1,1,1,opaque,no choice in 4th trial ,no,"very intimidated, went  onto the other side before experience phase, didn't choose at all in the last test trial",bleib,blue
+Mado,19,test,yellow,f,West Highland White Terrier,yes! ,07/12/2022,13/12/2018,47,4,1,3,opaque ,,yes,"great video, changed the gesture during Pre-test1a, but did the ""original"" one in Pre-Test2 & test phase, ",bleib ,blue 
+Maggy5,20,contr,blue,f,Whippet ,,13/12/2022,23/02/2017,69,9,1,9,transparent,,yes,,bleib,blue 
+Jamie7,21,test,yellow,m,Greyhound,,08/12/2022,17/09/2018,50,3,1,2,opaque,,yes,"long watch period, sneaky during trial 2 ??",stay,blue
+Rudi2,22,contr,blue,m,Parson Russel Terrier,yes! ,14/12/2022,24/02/2021,21,1,3,1,transparent,,no,"wall fell down during experience phase, but dog did not went onto the other side ",bleib ,blue
+Aziz ,23,test,yellow,m,Hovawart,RH Fläche A,09/02/2023,07/05/2011,141,1,4,2,opaque ,,yes,,bleib ,yellow 
+Paul3,24,contr,yellow,m,Whippet,no,14/12/2022,17/08/2012,123,1,1,1,transparent,,no,,bleib,blue 
+Tofu,25,test,yellow,m,Cocker Spaniel,no,15/12/2022,26/09/2021,14,4,1,4,opaque,,yes,bumped his head during experience phase,bleib,blue 
+Mimi6,26,contr,blue,f,Havaneser,no,15/12/2022,05/10/2016,74,2,1,2,transparent,,yes,,bleib,blue 
+Oscar2,27,test,blue,m,Havaneser,no,15/12/2022,23/11/2020,24,1,1,2,transparent,,yes,"needed to perform pre-test 2 two times, because owner did release the dog too soon, Before Test trial 1 the dog went to one side of the room -> owner was old and did not understand that he should go straight to the chair, owner did pet dog during test trial  ",bleib,blue 
+Nuki,28,contr,blue,m,Whippet,BGH,05/01/2023,30/10/2021,14,3,1,1,transparent,,yes,"good control video, ICG, no lines on floor ",nein ,yellow 
+Sixtus,29,test,yellow,m,Petit Barbacon,,19/01/2023,30/07/2016,77,1,1,1,transparent,,no,,stay ,yellow 
+Lucy18,30,contr,blue,f,Zwergpudel,"Welpenkurs, Mantrailing",18/01/2023,03/09/2021,16,1,1,1,opaque ,,no,,bleib ,yellow
+Sunny14,31,test,yellow,m,Whippet,Welpenkurs,11/01/2023,07/01/2014,108,3,1,1,transparent,,yes,,bleib ,yellow 
+Duana,32,contr,blue,f,Irish Glenn of Imaal Terrier,"Wiener Hundeführschein, BH, Verkehrstest, Therapiebegleithund",18/01/2023,03/12/2013,109,3,1,2,transparent,,yes,good video! ,bleib,yellow 
+Dorli,33,test,blue,f,Wire-haired Dachshund,"Welpenkurs, Mantrailing",09/01/2023,09/03/2021,22,1,6,1,opaque,,no," no lines on the floor, too long period in pre-test2 ? Hard to see when owner releases the dog  ",bleib,yellow
+Lilo5,34,contr,yellow,f,Whippet ,,08/12/2022,10/10/2016,73,1,1,1,transparent,,no,"was intimidatet & barked a bit, but still continued to participate ",bleib,yellow 
+Loki6,35,test,yellow,m,Great Swiss Mountain Dog ,Mantrailing ,19/01/2023,22/07/2015,89,2,1,2,transparent,,yes,good first trial ,bleib,yellow 
+Oscar3,36,contr,blue,m,Miniature Bull Terrier,no,23/01/2023,14/07/2018,54,1,5,1,transparent ,,no," Pre-Test 2 needed to be repeated, because the owner releasedthe dog too soon,but dog wnt for the treaqt! ",bleib,yellow 
+Lucy19,37,test,blue,f,Chihuahua,,24/01/2023,21/07/2015,90,2,1,1,opaque ,,yes,,bleib ,yellow 
+Bärli,38,contr,blue,m,Irish Glenn of Imaal Terrier,"BGH, BGH1",24/01/2023,30/03/2015,93,1,2,1,opaque ,,no,,bleib ,yellow 
+Finne-Faiblhe,39,test,blue,f,Irish Glenn of Imaal Terrier,"BGH 1, GH und VT",30/01/2023,12/12/2018,49,4,1,2,opaque,,yes,perfect  Video ,bleib,yellow 
+Rose,40,contr,blue,m,Foxterrier ,no,30/01/2023,19/05/2021,20,3,1,1,transparent,,yes,,bleib,yellow 
+Jay2,41,test,yellow,m,French Bulldog,no,01/02/2023,20/07/2016,78,1,1,4,opaque,,yes,"was very interested In me, during experience phase I needed to go behind the berrier since he wanted to come on the other side, did go to the other side but didn’t se anything, background noise ",bleib ,yellow 
+Ragnar,42,contr,blue,m,Bedlington Terrier ,"Unterordnunsteil, Agility, ",01/02/2023,01/02/2018,60,3,1,1,opaque,,yes,,bleib,blue
+Maya5,43,test,blue ,f,Hovawart,Rettungshund Ausbildung ,09/02/2023,09/09/2020,29,3,1,1,opaque,repetition of first trial ,yes,"needed to stay behind the barriers during experience phase, repetition of first trial ",bleib,blue
+Lottie2,44,contr,yellow,f,Parson Russel Terrier,"Hundeschule, Agility ohne Prüfung ",01/02/2023,17/05/2018,56,1,1,1,transparent,,no," during experience phase went onto the other side,",bleib ,yellow 
+Pepper3,45,test,blue,f,Parson Russel Terrier,"Welpenkurs, Grundkurs",06/02/2023,15/03/2018,58,4,1,5,opaque,,yes,,bleib,blue 
+Sol,46,contr,yellow,m,Shih Tzu,no,02/02/2023,31/07/2021,18,6,1,3,transparent,,yes,,stay,yellow 
+Diego6,47,test,yellow,m,Border Terrier,"BGH 2, Stöber 1, Stöberturniere, Hundeausstellung ",02/02/2023,09/09/2017,64,1,1,1,transparent,,no,,bleib,yellow 
+Maybe,48,contr,yellow,f,Parson Russel Terrier,"BGH , BGH1, Vorprüfung Trümmer &Fläche, Prüfung Fläche ",06/02/2023,11/06/2018,55,3,1,2,transparent,,yes,needed to go behind the barriers to protect dog from crossing ,bleib ,yellow 
+Milo8,49,test,blue,m,Staffordshire Bull Terrier ,"GH, BGH1",06/02/2023,07/10/2020,27,1,1,1,transparent,repetition of first trial ,no,"perfect video, needed to go behind the barriers to protect dog from crossing ",bleib ,blue 
+Finja,50,contr,yellow,f,Maltese,Agility,21/02/2023,09/05/2016,81,2,1,1,transparent,,yes,,bleib,yellow 
+Chomsky,51,test,yellow,m,Rottweiler,no,05/01/2023,17/12/2015,84,1,3,1,transparent ,,no,"Needd to stay behind the barriers during Experience phase just in case, but didn't worry the dog at all ",bleib ,yellow 
+Kira16,52,contr,yellow,f,Siberian Husky,"Schlittentraining, Longieren, Dog  Tracking",21/02/2023,01/11/2021,15,2,1,2,opaque,,yes,needed to go behind the barriers to protect dog from crossing ,bleib,yellow 
+Yuki5,53,test,yellow,f,Siberian Husky,"Schlittentraining, Longieren, Dog  Tracking",21/02/2023,01/02/2018,60,3,1,1,opaque ,,yes,needed to go behind the barriers to protect dog from crossing ,bleib,yellow 
+Flee ,54,contr,yellow,m,Siberin Husky ,"Schlittentraining, Longieren, Dog  Tracking",21/02/2023,04/03/2019,47,4,1,1,opaque ,,yes,"needed to go behind the barriers to protect dog from crossing, video stopped during 3th trials, we repeated it again, dog made the exact same choice with the repetition  ",bleib ,blue 
+Kukie,55,test,yellow,f,Border Terrier,no,22/02/2023,27/09/2021,16,1,1,4,opaque ,,yes,,bleib,yellow 
+Madlain ,56,contr,blue,f,Border Terrier ,no ,22/02/2023,17/01/2016,85,2,1,2,opaque ,,yes,needed to go behind the barriers to protect dog from crossing ,bleib ,blue 
+Aoife,57,test,blue,f,Irish Glenn of Imaal Terrier,BGH2,22/02/2023,21/03/2013,119,6,1,6,transparent,,yes,,bleib ,blue 
+Peggy2,58,contr,yellow,f,Bernese Mountain Dog ,"BH1, BH2, Trickdog",24/02/2023,01/05/2014,105,3,3,3,opaque,,yes,,bleib ,yellow 
+Monty7,59,test,blue,f,Border Terrier,"Ausstellung, BG, Trickdog, Therapiemitarbeitug aber kinenTheraqpieausbildung, Fährtenquadrat,",22/02/2023,16/02/2014,108,4,3,1,opaque ,,yes,good second trial ,bleib ,blue 
+Sammy11,60,contr,blue,m,Parson Russel Terrier ,"Gehorsam, Anlageprüfung, Fährtenarbeit (ohne Prüfung) ",24/02/2023,15/07/2017,67,2,1,1,opaque ,,yes,,bleib ,blue 

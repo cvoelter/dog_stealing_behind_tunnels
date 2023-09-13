@@ -1,0 +1,1265 @@
+---
+title: "Stealing behind tunnels"
+format: pdf
+editor: visual
+---cita
+---
+
+next steps: latency analysis for the terriers, side biases.
+## load packages
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(multcomp)
+source("./functions/diagnostic_fcns.r")
+source("./functions/glmm_stability.r")
+source("./functions/boot_glmm.r")
+source("./functions/boot_glmm2.r")
+load("stealing_behind_tunnels_workspace.RData")
+```
+
+## load demographics
+
+```{r}
+demo.data <- read.csv(file = "data/counterbalancing_stealing_tunnels.csv") %>%
+  mutate(Subject = fct_recode(as.factor(Subject), Bärli = "B\xe4rli")) %>%
+  mutate(first_condition = fct_recode(as.factor(first_condition), control = "contr")) %>%
+  mutate(Subject = str_replace_all(Subject, " ", ""))%>%
+  mutate(first_condition = str_replace_all(first_condition, " ", ""))
+
+
+
+levels(as.factor(demo.data$Subject))
+
+levels(as.factor(demo.data$Subject))
+
+```
+
+## load loopy data
+
+```{r}
+loopy.data <- read.csv("data/scoringproject_83_stealing_behind_tunnels_scoring.csv") %>%
+  mutate(Subject = str_replace_all(Subject, " ", ""))%>%
+  mutate(Subject = fct_recode(as.factor(Subject), Kira16 = "Kira")) %>%
+  select(Scoring:trial) %>%
+  mutate(duration = Stop - Start)%>%
+  full_join(demo.data) %>%
+  mutate(condition = ifelse(((first_condition == "test" & trial <= 2)| (first_condition == "control" & trial > 2)), "test", "control")) %>%
+  mutate(opaque_choice = as.numeric(ifelse(Value == "opaque", 1,
+                                           ifelse(Value == "transparent", 0 , "")))) %>%
+  mutate(trial_w_con = as.numeric(ifelse(trial>2, trial-2, trial)))
+
+levels(as.factor(loopy.data$Subject))
+levels(as.factor(loopy.data$first_condition))
+table(loopy.data$Subject, loopy.data$condition)
+
+```
+
+```{r}
+first_choice_data <- loopy.data %>%
+  filter(Behaviour == "first_choice")
+
+
+table(first_choice_data$Subject, first_choice_data$condition)
+table(first_choice_data$Subject, first_choice_data$opaque_choice)
+table(first_choice_data$Subject, first_choice_data$trial) #three missing trials --> dogs did not make a choice
+```
+
+aggregate data
+
+```{r}
+first_choice_data.agg <- first_choice_data %>%
+  group_by(Subject, condition,trial_w_con, first_condition) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+first_choice_data.agg2 <- first_choice_data.agg %>%
+  group_by(condition, trial_w_con, first_condition) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+first_choice_data.agg3 <- first_choice_data.agg %>%
+  group_by(condition,  first_condition) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+```
+
+
+```{r}
+first_choice_data.agg_pretest <- first_choice_data %>%
+  group_by(condition, trial_w_con, firstchoice_pretest2) %>%
+  summarise(mean_opaque = mean(opaque_choice, na.rm=TRUE), median_opaque = median(opaque_choice, , na.rm=TRUE), sd_opaque = sd(opaque_choice, na.rm=TRUE), se_opaque = sd(opaque_choice)/sqrt(length(opaque_choice)))
+
+ggplot(data = first_choice_data.agg_pretest, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+ 
+  facet_wrap(~firstchoice_pretest2)
+
+```
+
+### plot of first choice data
+
+```{r}
+ggplot(data = first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+ 
+  facet_wrap(~first_condition)
+
+```
+```{r}
+ggplot(data = first_choice_data.agg3, aes(x = condition, y= mean_opaque))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab(NULL) + 
+  ylab ("Mean proportion opaque choice")+ 
+  facet_wrap(~first_condition)
+```
+## remove dogs that always chose same side
+```{r}
+first_choice_data.agg4 <- first_choice_data %>%
+  group_by(Subject) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) %>%
+  filter(mean_opaque_ind>0 & mean_opaque_ind<1)
+
+first_choice_data_wo_sidebias <- first_choice_data %>%
+  inner_join(first_choice_data.agg4)
+
+first_choice_data_wo_sidebias_agg <- first_choice_data_wo_sidebias %>%
+  group_by(Subject, condition,trial_w_con) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+first_choice_data_wo_sidebias_agg2 <- first_choice_data_wo_sidebias_agg %>%
+  group_by(condition, trial_w_con) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+```
+
+```{r}
+ggplot(data = first_choice_data_wo_sidebias_agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")
+
+```
+
+## Behavioral data: condition comparison
+
+```{r}
+first_choice_data$z.trial<-as.vector(scale(first_choice_data$trial_w_con, center = TRUE, scale=TRUE))
+
+first_choice_data$condition <- as.factor(first_choice_data$condition)
+levels(first_choice_data$condition)
+first_choice_data$condition.c=as.vector(scale(as.numeric(first_choice_data$condition==levels(as.factor(first_choice_data$condition))[2]), center=TRUE, scale= FALSE))
+```
+
+fit model
+
+```{r}
+mm1_choice=glmer(opaque_choice ~ condition+z.trial+first_condition+
+                   (1+condition.c|Subject),
+             data=first_choice_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice)
+drop1(mm1_choice, test="Chisq")
+```
+
+```{r}
+
+mm1_choice_drop1 <- drop1(mm1_choice, test="Chisq")%>% 
+  filter(!is.na(npar)) %>% 
+  add_row(npar = rep(NA,1),  .before = 1)
+```
+
+Check for colinearity
+
+```{r}
+library(car)
+xx=lm(opaque_choice ~ condition+z.trial+first_condition, data=first_choice_data)
+vif(xx)
+```
+
+```{r}
+mm1_choice.ci=boot.glmm.pred(model.res=mm1_choice, excl.warnings=F,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+```
+
+#### output table
+
+```{r}
+mm1_choice_output_table <-
+  bind_cols(as.data.frame(summary(mm1_choice)$coeff),
+            mm1_choice_drop1,
+            mm1_choice.ci$ci.estimates) %>%
+  select(
+    Estimate,
+    SE = `Std. Error`,
+    LowerCI = X2.5.,
+    UpperCI = X97.5.,
+    Chi2 = LRT,
+    df = npar,
+    p = `Pr(Chi)`,
+    z_wald = `z value`,
+    p_wald = `Pr(>|z|)`
+  ) %>% #
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
+  mutate(across(.cols = c(Estimate:Chi2), ~ format(round(.x, 2), nsmall = 2))) %>%
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+  mutate(p = replace(p, p == 0, "<0.001"))
+
+write.csv(mm1_choice_output_table, file = "saves/mm1_choice_output_table.csv")
+```
+
+```{r}
+save.image("stealing_behind_tunnels_workspace.RData")
+```
+
+## comparison against chance
+
+```{r}
+first_choice_test_data <- first_choice_data %>%
+  filter(condition == "test")
+
+first_choice_control_data <- first_choice_data %>%
+  filter(condition == "control")
+```
+
+
+```{r}
+mm1_choice_test_io=glmer(opaque_choice ~ 1 +
+                   (1|Subject),
+             data=first_choice_test_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice_test_io)
+```
+In the test condition, the dogs' performance did not deviate significantly from the chance value of 0.5 (z = -0.86, p = 0.391)
+```{r}
+mm1_choice_control_io=glmer(opaque_choice ~ 1 +
+                   (1|Subject),
+             data=first_choice_control_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice_control_io)
+```
+
+
+
+## latency data
+
+```{r}
+table(latency_fc_data$Subject, latency_fc_data$trial)
+
+latency_data <- loopy.data%>%
+  mutate(Value = ifelse(Subject == "Sophi" & Start_Frame == 143869, "latency_to_2nd_choice", Value))%>% #correct scoring mistake
+  filter(Behaviour == "latency_first_choice") %>%
+  rename(latency = duration)
+
+latency_data%>%filter(Subject=="Sophi")
+
+latency_fc_data <- loopy.data%>%
+  mutate(Value = ifelse(Subject == "Sophi" & Start_Frame == 143869, "latency_to_2nd_choice", Value))%>%
+  filter(Behaviour == "latency_first_choice", Value == "latency") %>%
+  rename(latency = duration)
+
+latency_sc_data <- loopy.data%>%
+  mutate(Value = ifelse(Subject == "Sophi" & Start_Frame == 143869, "latency_to_2nd_choice", Value))%>%
+  filter(Behaviour == "latency_first_choice", Value == "latency_to_2nd_choice") %>%
+  rename(latency = duration)
+
+latency_fc_data%>%filter(Subject=="Sophi")
+
+```
+
+aggregate latency data
+
+```{r}
+latency_data_agg <- latency_data %>%
+  group_by(Subject, condition, Value) %>%
+  summarise(mean_latency = mean(latency))
+
+latency_data_agg2 <- latency_data_agg %>%
+  group_by(condition, Value) %>%
+  summarise(mean_latency2 = mean(mean_latency), se_latency = sd(mean_latency)/sqrt(length(mean_latency)))
+```
+
+```{r}
+ggplot(latency_data_agg, aes(x = condition, y = mean_latency)) + 
+  geom_boxplot(outlier.colour = "white")+
+  geom_jitter()+
+  facet_wrap(~Value)+ 
+  theme_bw()
+```
+
+```{r}
+ggplot(latency_data_agg2, aes(x = condition, y = mean_latency2)) +
+  geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_latency2 - se_latency, ymax = mean_latency2 + se_latency  ),  position=position_dodge(.9), width=0.4)+
+  facet_wrap(~Value)+ 
+  theme_bw()
+
+```
+
+
+#### Model preparation
+```{r}
+latency_fc_data<- latency_fc_data%>%
+  select(Subject, latency, condition, trial_w_con, first_condition)%>%
+  full_join(first_choice_data%>%select(Subject, opaque_choice, condition, trial_w_con, first_condition))%>%
+  mutate(choice = fct_recode(as.factor(opaque_choice), "opaque" ="1", "clear" ="0"))
+
+
+
+latency_fc_data$z.trial<-as.vector(scale(latency_fc_data$trial_w_con, center = TRUE, scale=TRUE))
+latency_fc_data$condition <- as.factor(latency_fc_data$condition)
+levels(latency_fc_data$condition)
+latency_fc_data$condition.c=as.vector(scale(as.numeric(latency_fc_data$condition==levels(as.factor(latency_fc_data$condition))[2]), center=TRUE, scale= FALSE))
+
+latency_fc_data$choice.c=as.vector(scale(as.numeric(latency_fc_data$choice==levels(as.factor(latency_fc_data$choice))[2]), center=TRUE, scale= FALSE))
+
+
+
+
+latency_fc_data$log_latency<-log(latency_fc_data$latency)
+hist(latency_fc_data$latency)
+max(latency_fc_data$latency)
+
+hist(latency_fc_data$log_latency)
+
+table(latency_fc_data$Subject, latency_fc_data$choice)
+```
+
+
+
+
+#### fit model
+```{r}
+mm1.latency.int <- lme4::lmer(
+  log_latency ~ choice*condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data,
+  REML = FALSE
+)
+summary(mm1.latency.int)
+drop1(mm1.latency.int, test="Chisq") # interaction between choice and condition not significant --> interaction is dropped to evaluate the main effects
+```
+```{r}
+mm1.latency <- lme4::lmer(
+  log_latency ~ choice+condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data,
+  REML = FALSE
+)
+summary(mm1.latency)
+drop1(mm1.latency, test="Chisq")
+```
+
+
+```{r}
+diagnostics.plot(mm1.latency, size.fac=2)
+
+ranef.diagn.plot(mm1.latency)
+```
+
+```{r}
+drop1_mm1.latency <- drop1(mm1.latency, test="Chisq")%>%
+  filter(!is.na(npar))%>%
+  add_row(npar = rep(NA,1),  .before = 1)
+drop1_mm1.latency
+
+```
+Individual fixed effects
+```{r}
+library(lmerTest)
+
+mm1.latency.reml<-lmerTest::lmer(
+  log_latency ~ choice + condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data,
+  REML=TRUE)
+
+summary(mm1.latency.reml)
+```
+
+
+
+Colinearity checks
+```{r}
+library(car)
+xx=lm(log_latency ~ choice + condition + z.trial + first_condition,
+  data = latency_fc_data)
+vif(xx)
+```
+relative model complexity
+```{r}
+length(residuals(mm1.latency))/
+(length(fixef(mm1.latency))+
+nrow(as.data.frame(summary(mm1.latency)$varcor)))
+```
+model stability
+To evaluate model stability we removed each level of the random intercept subject ID one at a time and compared the resulting estimate. This revealed the model to be stable with respect to the fixed effects.
+```{r}
+
+mm1.latency.stab=glmm.model.stab(model.res=mm1.latency, contr=NULL, para=F, data=NULL)
+
+mm1.latency.stab$summary
+
+m.stab.plot(round(mm1.latency.stab$summary[, -1], 3))
+```
+--> model stable with regard to the fixed effects
+
+```{r}
+boot.mm1.latency=boot.lmer(mm1.latency,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+mm1.latency_boot_ci<-boot.mm1.latency$ci.estimates
+```
+#### effect size
+```{r}
+library(MuMIn)
+r.squaredGLMM(mm1.latency)
+```
+
+
+#### output table
+```{r}
+
+
+model_table_mm1.latency <- bind_cols(as.data.frame(summary(mm1.latency.reml)$coefficients),
+                         #drop1_mm1.yarbus.signaling,
+                         mm1.latency_boot_ci) %>% #mm2_boot_ci<-boot.full$ci.estimates
+  dplyr::select(Estimate, SE = `Std. Error`, LowerCI = X2.5., UpperCI = X97.5., t_value = `t value`, p = `Pr(>|t|)`) %>%
+  mutate(across(.cols = c(p), ~ round(.x, 3))) %>% 
+  mutate(across(.cols = c(Estimate:t_value), ~ round(.x, 2))) %>% 
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+mutate(p=replace(p, p==0, "<0.001"))
+
+write.csv(model_table_mm1.latency , file = "saves/latency_mm1_output_table.csv")
+```
+
+
+## second choice latency
+
+#### Model preparation
+```{r}
+latency_sc_data<- latency_sc_data%>%
+  select(Subject, latency, condition, trial_w_con, first_condition)%>%
+  full_join(first_choice_data%>%select(Subject, opaque_choice, condition, trial_w_con, first_condition))%>%
+  mutate(choice = fct_recode(as.factor(opaque_choice), "opaque" ="1", "clear" ="0"))
+
+
+
+latency_sc_data$z.trial<-as.vector(scale(latency_sc_data$trial_w_con, center = TRUE, scale=TRUE))
+latency_sc_data$condition <- as.factor(latency_sc_data$condition)
+levels(latency_sc_data$condition)
+latency_sc_data$condition.c=as.vector(scale(as.numeric(latency_sc_data$condition==levels(as.factor(latency_sc_data$condition))[2]), center=TRUE, scale= FALSE))
+
+latency_sc_data$choice.c=as.vector(scale(as.numeric(latency_sc_data$choice==levels(as.factor(latency_sc_data$choice))[2]), center=TRUE, scale= FALSE))
+
+
+
+
+latency_sc_data$log_latency<-log(latency_sc_data$latency)
+hist(latency_sc_data$latency)
+max(latency_sc_data$latency, na.rm=TRUE)
+min(latency_sc_data$latency, na.rm=TRUE)
+is.na(latency_sc_data$latency)
+hist(latency_sc_data$log_latency)
+
+table(latency_sc_data$Subject, latency_sc_data$choice)
+
+latency_sc_data<-latency_sc_data%>%filter(!is.na(latency))
+```
+
+
+
+
+#### fit model
+```{r}
+mm1.sc.latency.int <- lme4::lmer(
+  log_latency ~ choice*condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_sc_data,
+  REML = FALSE
+)
+summary(mm1.sc.latency.int)
+drop1(mm1.sc.latency.int, test="Chisq") # interaction between choice and condition  significant 
+```
+
+
+
+```{r}
+library(performance)
+#check_model(mm1.sc.latency.reml)
+diagnostics.plot(mm1.sc.latency.int, size.fac=2)
+
+ranef.diagn.plot(mm1.sc.latency.int)
+```
+```{r}
+ggplot(latency_sc_data, aes(x= choice, y = log_latency, color=condition))+
+
+  geom_boxplot()+
+    geom_point(position=position_dodge(width = 0.2), alpha=.3)+
+  facet_wrap(~trial_w_con)
+```
+
+```{r}
+latency_sc_data_agg<-latency_sc_data%>%
+  group_by(condition, choice)%>%
+  summarise(mean_latency = mean(latency, na.rm=TRUE), se=sd(latency, na.rm=TRUE)/sqrt(length(latency)))
+
+sc.plot<-ggplot(data = latency_sc_data_agg, aes(x = as.factor(choice), y= mean_latency, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_latency - se, ymax = mean_latency + se  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  xlab(NULL) + 
+  ylab ("Mean second choice latency")+
+  scale_fill_manual(values = c("darkorange", "darkgreen"))
+
+ggsave(sc.plot, file="graphics/second_choice_latency_plot.png", width = 6, height= 6, scale=0.8)
+
+latency_sc_data_agg2<-latency_sc_data%>%
+  group_by(condition, choice, trial_w_con)%>%
+  summarise(mean_latency = mean(latency, na.rm=TRUE), se=sd(latency, na.rm=TRUE)/sqrt(length(latency)))
+
+ggplot(data = latency_sc_data_agg2, aes(x = as.factor(choice), y= mean_latency, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_latency - se, ymax = mean_latency + se  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  xlab(NULL) + 
+  ylab ("Mean second choice latency")+
+  scale_fill_manual(values = c("darkorange", "darkgreen"))+
+  facet_wrap(~trial_w_con)
+
+```
+
+
+```{r}
+drop1_mm1.sc.latency <- drop1(mm1.sc.latency.int, test="Chisq")%>%
+  filter(!is.na(npar))%>%
+  add_row(npar = rep(NA,1),  .before = 1)
+drop1_mm1.sc.latency
+
+```
+Individual fixed effects
+```{r}
+library(lmerTest)
+
+mm1.sc.latency.reml<-lmerTest::lmer(
+  log_latency ~ choice * condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_sc_data,
+  REML=TRUE)
+
+summary(mm1.sc.latency.reml)
+```
++ Relevel the reference category of choice
+```{r}
+library(lmerTest)
+latency_sc_data$choice_rel <- relevel( as.factor(latency_sc_data$choice), ref = "opaque") 
+latency_sc_data$condition_rel <- relevel( as.factor(latency_sc_data$condition), ref = "test") 
+levels(latency_sc_data$choice_rel)
+mm1.sc.latency.reml_rel<-lmerTest::lmer(
+  log_latency ~ choice_rel * condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_sc_data,
+  REML=TRUE)
+
+summary(mm1.sc.latency.reml_rel)
+```
+
+
+Colinearity checks
+```{r}
+library(car)
+xx=lm(log_latency ~ choice + condition + z.trial + first_condition,
+  data = latency_sc_data)
+vif(xx)
+```
+relative model complexity
+```{r}
+length(residuals(mm1.sc.latency))/
+(length(fixef(mm1.sc.latency))+
+nrow(as.data.frame(summary(mm1.sc.latency)$varcor)))
+```
+model stability
+To evaluate model stability we removed each level of the random intercept subject ID one at a time and compared the resulting estimate. This revealed the model to be stable with respect to the fixed effects.
+```{r}
+
+mm1.sc.latency.stab=glmm.model.stab(model.res=mm1.sc.latency.int, contr=NULL, para=F, data=NULL)
+
+mm1.sc.latency.stab$summary
+
+m.stab.plot(round(mm1.sc.latency.stab$summary[, -1], 3))
+```
+--> model stable with regard to the fixed effects
+
+```{r}
+boot.mm1.sc.latency=boot.lmer(mm1.sc.latency.int,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+mm1.sc.latency_boot_ci<-boot.mm1.sc.latency$ci.estimates
+```
+#### effect size
+```{r}
+library(MuMIn)
+r.squaredGLMM(mm1.sc.latency.int)
+```
+
+
+#### output table
+```{r}
+
+
+model_table_mm1.sc.latency <- bind_cols(as.data.frame(summary(mm1.sc.latency.reml)$coefficients),
+
+                         mm1.sc.latency_boot_ci) %>% #mm2_boot_ci<-boot.full$ci.estimates
+  dplyr::select(Estimate, SE = `Std. Error`, LowerCI = X2.5., UpperCI = X97.5., t_value = `t value`, p = `Pr(>|t|)`) %>%
+  mutate(across(.cols = c(p), ~ round(.x, 3))) %>% 
+  mutate(across(.cols = c(Estimate:t_value), ~ round(.x, 2))) %>% 
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+mutate(p=replace(p, p==0, "<0.001"))
+
+write.csv(model_table_mm1.sc.latency , file = "saves/sc_latency_mm1_output_table.csv")
+```
+
+
+## subgroups: terrier, etc
+### terrier
+#### choice(terrier)
+aggregate data
+
+```{r}
+terrier_first_choice_data.agg <- first_choice_data %>%
+  mutate(terrier = fct_recode(as.factor(terrier), "Terrier" = "yes", "No terrier" = "no"))%>%
+  group_by(Subject, condition, terrier, trial_w_con) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+terrier_first_choice_data.agg %>%   group_by(trial_w_con, condition, terrier) %>% summarise(length(mean_opaque_ind))
+
+terrier_first_choice_data.agg2 <- terrier_first_choice_data.agg %>%
+  group_by(condition, terrier, trial_w_con) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+terrier_first_choice_data.agg3 <- terrier_first_choice_data.agg %>%
+  group_by(condition, terrier) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+```
+
+
+
+```{r}
+ggplot(data = terrier_first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+
+  facet_wrap(~terrier)+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))
+
+```
+
+```{r}
+ggplot(data = terrier_first_choice_data.agg3, aes(x =terrier, y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab(NULL) + 
+  ylab ("Mean proportion opaque choice")+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))+
+  geom_hline(yintercept = 0.5, lty = 2, color = "grey")
+```
+
+fit model
+
+
+```{r}
+mm1_choice_terrier=glmer(opaque_choice ~ terrier*condition+z.trial+first_condition+
+                   (1+condition.c|Subject),
+             data=first_choice_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice_terrier)
+drop1(mm1_choice_terrier, test="Chisq") #interaction not significant
+```
+```{r}
+mm2_choice_terrier=glmer(opaque_choice ~ terrier+condition+z.trial+first_condition+
+                   (1+condition.c|Subject),
+             data=first_choice_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm2_choice_terrier)
+drop1(mm2_choice_terrier, test="Chisq")
+```
+
+```{r}
+
+mm2_choice_terrier_drop1 <- drop1(mm2_choice_terrier, test="Chisq")%>% 
+  filter(!is.na(npar)) %>% 
+  add_row(npar = rep(NA,1),  .before = 1)
+```
+
+Check for colinearity
+
+```{r}
+library(car)
+xx=lm(opaque_choice ~ terrier+condition+z.trial+first_condition, data=first_choice_data)
+vif(xx)
+```
+
+```{r}
+mm2_choice_terrier.ci=boot.glmm.pred(model.res=mm2_choice_terrier, excl.warnings=F,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+```
+
+#### output table
+
+```{r}
+mm2_terrier_choice_output_table <-
+  bind_cols(as.data.frame(summary(mm2_choice_terrier)$coeff),
+            mm2_choice_terrier_drop1,
+            mm2_choice_terrier.ci$ci.estimates) %>%
+  select(
+    Estimate,
+    SE = `Std. Error`,
+    LowerCI = X2.5.,
+    UpperCI = X97.5.,
+    Chi2 = LRT,
+    df = npar,
+    p = `Pr(Chi)`,
+    z_wald = `z value`,
+    p_wald = `Pr(>|z|)`
+  ) %>% #
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
+  mutate(across(.cols = c(Estimate:Chi2), ~ format(round(.x, 2), nsmall = 2))) %>%
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+  mutate(p = replace(p, p == 0, "<0.001"))
+
+write.csv(mm2_terrier_choice_output_table, file = "saves/mm2_choice_terrier_output_table.csv")
+```
+
+
+
+### latency data (terrier)
+
+```{r}
+
+latency_fc_data_terrier <- loopy.data%>%
+  mutate(Value = ifelse(Subject == "Sophi" & Start_Frame == 143869, "latency_to_2nd_choice", Value))%>%
+  filter(Behaviour == "latency_first_choice", Value == "latency") %>%
+  rename(latency = duration)%>%
+  mutate(terrier = fct_recode(as.factor(terrier), "Terrier" = "yes", "No terrier" = "no"))%>%
+  select(-opaque_choice)%>%
+  full_join(first_choice_data%>%select(Subject, opaque_choice, condition, trial_w_con))%>%
+  mutate(choice = fct_recode(as.factor(opaque_choice), "opaque" ="1", "clear" ="0"))
+  
+
+
+
+```
+
+aggregate latency data
+
+```{r}
+latency_fc_data_terrier_agg <- latency_fc_data_terrier %>%
+  filter(Value =="latency")%>%
+  group_by(Subject, condition, choice, terrier) %>%
+  summarise(mean_latency = mean(latency))
+
+latency_data_agg2 <- latency_fc_data_terrier_agg %>%
+  group_by(condition, choice, terrier) %>%
+  summarise(mean_latency2 = mean(mean_latency), se_latency = sd(mean_latency)/sqrt(length(mean_latency)))
+```
+
+```{r}
+ggplot(latency_fc_data_terrier_agg, aes(x = condition, y = mean_latency)) + 
+  geom_boxplot(outlier.colour = "white")+
+  geom_jitter()+
+  facet_grid(choice~terrier)+ 
+  theme_bw()
+```
+
+```{r}
+ggplot(latency_data_agg2, aes(x = condition, y = mean_latency2, fill=choice)) +
+  geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_latency2 - se_latency, ymax = mean_latency2 + se_latency  ),  position=position_dodge(.9), width=0.4)+
+  facet_wrap(~terrier)+ 
+  theme_bw()
+
+```
+#### Model preparation
+```{r}
+latency_fc_data_terrier2 <- latency_fc_data_terrier2 %>%
+  filter(terrier =="Terrier")
+latency_fc_data_terrier2$z.trial<-as.vector(scale(latency_fc_data_terrier2$trial_w_con, center = TRUE, scale=TRUE))
+latency_fc_data_terrier2$condition <- as.factor(latency_fc_data_terrier2$condition)
+levels(latency_fc_data_terrier2$condition)
+latency_fc_data_terrier2$condition.c=as.vector(scale(as.numeric(latency_fc_data_terrier2$condition==levels(as.factor(latency_fc_data_terrier2$condition))[2]), center=TRUE, scale= FALSE))
+
+latency_fc_data_terrier2$choice.c=as.vector(scale(as.numeric(latency_fc_data_terrier2$choice==levels(as.factor(latency_fc_data_terrier2$choice))[2]), center=TRUE, scale= FALSE))
+
+latency_fc_data_terrier2$log_latency<-log(latency_fc_data_terrier2$latency)
+hist(latency_fc_data_terrier2$latency)
+max(latency_fc_data_terrier2$latency)
+
+hist(latency_fc_data_terrier2$log_latency)
+
+table(latency_fc_data_terrier2$Subject, latency_fc_data_terrier2$choice)
+```
+
+
+
+
+#### fit model
+```{r}
+mm1.latency.terrier.int <- lme4::lmer(
+  log_latency ~ choice*condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data_terrier2,
+  REML = FALSE
+)
+summary(mm1.latency.terrier.int)
+drop1(mm1.latency.terrier.int, test="Chisq") # interaction between choice and condition not significant --> interaction is dropped to evaluate the main effects
+```
+```{r}
+mm1.latency.terrier <- lme4::lmer(
+  log_latency ~ choice+condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data_terrier2,
+  REML = FALSE
+)
+summary(mm1.latency.terrier)
+drop1(mm1.latency.terrier, test="Chisq")
+```
+
+
+```{r}
+diagnostics.plot(mm1.latency.terrier, size.fac=2)
+
+ranef.diagn.plot(mm1.latency.terrier)
+```
+
+```{r}
+drop1_mm1.latency.terrier <- drop1(mm1.latency.terrier, test="Chisq")%>%
+  filter(!is.na(npar))%>%
+  add_row(npar = rep(NA,1),  .before = 1)
+drop1_mm1.latency.terrier
+
+```
+Individual fixed effects
+```{r}
+library(lmerTest)
+
+mm1.latency.terrier.reml<-lmerTest::lmer(
+  log_latency ~ choice + condition + z.trial + first_condition +
+    (1 + condition.c | Subject),
+  data = latency_fc_data_terrier2,
+  REML=TRUE)
+
+summary(mm1.latency.terrier.reml)
+```
+
+
+
+Colinearity checks
+```{r}
+library(car)
+xx=lm(log_latency ~ choice + condition + z.trial + first_condition,
+  data = latency_fc_data_terrier2)
+vif(xx)
+```
+relative model complexity
+```{r}
+length(residuals(mm1.latency.terrier))/
+(length(fixef(mm1.latency.terrier))+
+nrow(as.data.frame(summary(mm1.latency.terrier)$varcor)))
+```
+model stability
+To evaluate model stability we removed each level of the random intercept subject ID one at a time and compared the resulting estimate. This revealed the model to be stable with respect to the fixed effects.
+```{r}
+
+mm1.latency.terrier.stab=glmm.model.stab(model.res=mm1.latency.terrier, contr=NULL, para=F, data=NULL)
+
+mm1.latency.terrier.stab$summary
+
+m.stab.plot(round(mm1.latency.terrier.stab$summary[, -1], 3))
+```
+--> model stable with regard to the fixed effects
+
+```{r}
+boot.mm1.latency.terrier=boot.lmer(mm1.latency.terrier,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+mm1.latency.terrier_boot_ci<-boot.mm1.latency.terrier$ci.estimates
+```
+#### effect size
+```{r}
+library(MuMIn)
+r.squaredGLMM(mm1.latency.terrier)
+```
+
+
+#### output table
+```{r}
+
+
+model_table_mm1.latency.terrier <- bind_cols(as.data.frame(summary(mm1.latency.terrier.reml)$coefficients),
+                         #drop1_mm1.yarbus.signaling,
+                         mm1.latency.terrier_boot_ci) %>% #mm2_boot_ci<-boot.full$ci.estimates
+  dplyr::select(Estimate, SE = `Std. Error`, LowerCI = X2.5., UpperCI = X97.5., t_value = `t value`, p = `Pr(>|t|)`) %>%
+  mutate(across(.cols = c(p), ~ round(.x, 3))) %>% 
+  mutate(across(.cols = c(Estimate:t_value), ~ round(.x, 2))) %>% 
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+mutate(p=replace(p, p==0, "<0.001"))
+
+write.csv(model_table_mm1.latency.terrier , file = "saves/latency_mm1_terrier_output_table.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+### independent breeds
+
+#### According to Heberlein
+aggregate data
+
+```{r}
+ind_first_choice_data.agg <- first_choice_data %>%
+  mutate(independent_heberlein = fct_recode(as.factor(independent_heberlein), "Independent" = "yes", "Non-independent" = "no"))%>%
+  group_by(Subject, condition, independent_heberlein, trial_w_con) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+ind_first_choice_data.agg %>%   group_by(trial_w_con, condition, independent_heberlein) %>% summarise(length(mean_opaque_ind))
+table(ind_first_choice_data.agg$condition, ind_first_choice_data.agg$independent_heberlein )
+
+
+ind_first_choice_data.agg2 <- ind_first_choice_data.agg %>%
+  group_by(condition, independent_heberlein, trial_w_con) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+ind_first_choice_data.agg3 <- ind_first_choice_data.agg %>%
+  group_by(condition, independent_heberlein) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+breed_first_choice_data.agg <- first_choice_data %>%
+  mutate(independent_heberlein = fct_recode(as.factor(independent_heberlein), "Independent" = "yes", "Non-independent" = "no"))%>%
+  group_by(Subject, independent_heberlein, breed) %>%
+  summarise(n = length(trial==1))
+
+table(breed_first_choice_data.agg$breed, breed_first_choice_data.agg$independent_heberlein)
+```
+
+```{r}
+ggplot(data = ind_first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+
+  facet_wrap(~independent_heberlein)+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))
+
+```
+
+```{r}
+ggplot(data = ind_first_choice_data.agg3, aes(x =independent_heberlein, y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab(NULL) + 
+  ylab ("Mean proportion opaque choice")+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))+
+  geom_hline(yintercept = 0.5, lty = 2, color = "grey")
+```
+
+#### According to FCI and Heberlein
+aggregate data
+
+```{r}
+indfci_first_choice_data.agg <- first_choice_data %>%
+  filter(independent_breed_fci!="")%>%
+  mutate(independent_breed_fci = fct_recode(as.factor(independent_breed_fci), "Independent" = "yes", "Family-style" = "no"))%>%
+  group_by(Subject, condition, independent_breed_fci, trial_w_con) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+indfci_first_choice_data.agg %>%   group_by(trial_w_con, condition, independent_breed_fci) %>% summarise(length(mean_opaque_ind))
+
+ind_first_choice_data.agg2 <- indfci_first_choice_data.agg %>%
+  group_by(condition, independent_breed_fci, trial_w_con) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+ind_first_choice_data.agg3 <- indfci_first_choice_data.agg %>%
+  group_by(condition, independent_breed_fci) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+breed_first_choice_data.agg <- first_choice_data %>%
+    filter(independent_breed_fci!="")%>%
+  mutate(independent_fci = fct_recode(as.factor(independent_breed_fci), "Independent" = "yes", "Family-style" = "no"))%>%
+  group_by(Subject, independent_fci, breed) %>%
+  summarise(n = length(trial==1))
+
+table(breed_first_choice_data.agg$breed, breed_first_choice_data.agg$independent_fci)
+```
+
+```{r}
+ggplot(data = ind_first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+
+  facet_wrap(~independent_breed_fci)+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))
+
+```
+
+#### According to FCI groups
+aggregate data
+
+```{r}
+fci_first_choice_data.agg <- first_choice_data %>%
+    mutate(
+    fci_group = fct_recode(
+      as.factor(fci_group),
+      "Pinscher and Schnauzer" = "2",
+      "Terriers" = "3",
+      "Dachshunds" = "4",
+      "Spitz and primitive types" = "5",
+      "Retrievers" = "8",
+      "Companion and Toy Dogs" = "9",
+      "Sighthounds" = "10"
+          )
+  )%>%
+  group_by(Subject, condition, fci_group, trial_w_con) %>%
+  summarise(mean_opaque_ind = mean(opaque_choice)) 
+
+fci_first_choice_data.agg %>%   group_by(trial_w_con, condition, fci_group) %>% summarise(length(mean_opaque_ind))
+
+fci_first_choice_data.agg2 <- fci_first_choice_data.agg %>%
+  group_by(condition, fci_group, trial_w_con) %>%
+  summarise(mean_opaque = mean(mean_opaque_ind), median_opaque = median(mean_opaque_ind), sd_opaque = sd(mean_opaque_ind), se_opaque = sd(mean_opaque_ind)/sqrt(length(mean_opaque_ind)))
+
+
+
+fci_first_choice_data.agg3 <- fci_first_choice_data.agg %>%
+  group_by(condition, fci_group) %>%
+  summarise(
+    mean_opaque = mean(mean_opaque_ind, na.rm=TRUE),
+    median_opaque = median(mean_opaque_ind),
+    sd_opaque = sd(mean_opaque_ind, na.rm=TRUE),
+    se_opaque = sd(mean_opaque_ind, na.rm=TRUE) / sqrt(length(mean_opaque_ind)),
+    sample_size=length(mean_opaque_ind)
+  )
+
+fci_first_choice_data.agg4 <- fci_first_choice_data.agg %>%
+  group_by(fci_group) %>%
+  summarise(
+        mean_opaque = mean(mean_opaque_ind, na.rm=TRUE),
+    median_opaque = median(mean_opaque_ind),
+    sd_opaque = sd(mean_opaque_ind, na.rm=TRUE),
+    se_opaque = sd(mean_opaque_ind, na.rm=TRUE) / sqrt(length(mean_opaque_ind)),
+    sample_size=sum(trial_w_con==1 & condition=="test")
+  )
+
+fci_breed_first_choice_data.agg <- first_choice_data %>%
+  mutate(
+    fci_group = fct_recode(
+      as.factor(fci_group),
+      "Pinscher and Schnauzer" = "2",
+      "Terriers" = "3",
+      "Dachshunds" = "4",
+      "Spitz and primitive types" = "5",
+      "Retrievers" = "8",
+      "Companion and Toy Dogs" = "9",
+      "Sighthounds" = "10"
+          )
+  ) %>%
+  group_by(Subject, fci_group, breed) %>%
+  summarise(n = length(trial == 1))
+
+table(fci_breed_first_choice_data.agg$breed, fci_breed_first_choice_data.agg$fci_group)
+```
+
+```{r}
+ggplot(data = fci_first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_opaque, fill=condition))+
+    geom_bar(stat = "identity", position=position_dodge(.9))+
+  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
+  geom_hline(yintercept=0.5, lty=2)+
+  theme_bw() +
+  ylim(0, 1) + 
+  xlab("Trial within condition") + 
+  ylab ("Mean proportion opaque choice")+
+  facet_wrap(~fci_group)+ 
+  scale_fill_manual(values = c("darkorange", "darkgreen"))
+
+```
+```{r}
+
+fci_plot <-
+  ggplot(data = fci_first_choice_data.agg3 %>% filter(!fci_group %in% c("Dachshunds", "Retrievers")),
+         aes(x = fci_group, y = mean_opaque, fill = condition)) +
+  geom_bar(stat = "identity", position = position_dodge(.9)) +
+  geom_errorbar(
+    aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque),
+    position = position_dodge(.9),
+    width = 0.4
+  ) +
+  theme_bw() +
+  coord_flip() +
+  ylim(0, 1) +
+  xlab(NULL) +
+  ylab ("Mean proportion opaque choice") +
+  scale_fill_manual(values = c("darkorange", "darkgreen")) +
+  geom_hline(yintercept = 0.5,
+             lty = 2,
+             color = "grey") +
+  geom_text(
+    data = fci_first_choice_data.agg4 %>% filter(!fci_group %in% c("Dachshunds", "Retrievers")),
+    aes(label = paste0("n = ", sample_size), fill = NULL),
+    position = position_dodge(width = 0),
+    hjust = -2,
+    size = 4
+  )
+fci_plot
+```
+```{r}
+ggsave(fci_plot, file = "graphics/fci_plot.png", width = 10, height = 6, scale = 0.7)
+```
+
+### terrier and primitive types
+aggregate data
+
+```{r}
+fci3_5_first_choice_data <- first_choice_data %>%
+  filter(fci_group %in% c("3", "5"))
+
+```
+
+
+```{r}
+fci3_5_first_choice_data$z.trial<-as.vector(scale(fci3_5_first_choice_data$trial_w_con, center = TRUE, scale=TRUE))
+
+fci3_5_first_choice_data$condition <- as.factor(fci3_5_first_choice_data$condition)
+levels(fci3_5_first_choice_data$condition)
+fci3_5_first_choice_data$condition.c=as.vector(scale(as.numeric(fci3_5_first_choice_data$condition==levels(as.factor(fci3_5_first_choice_data$condition))[2]), center=TRUE, scale= FALSE))
+```
+
+```{r}
+
+fci35_first_choice_data.agg <- fci3_5_first_choice_data %>%
+  group_by(condition) %>%
+  summarise(
+    mean_opaque = mean(opaque_choice, na.rm=TRUE),
+    median_opaque = median(opaque_choice),
+    sd_opaque = sd(opaque_choice, na.rm=TRUE),
+    se_opaque = sd(opaque_choice, na.rm=TRUE) / sqrt(length(opaque_choice)),
+    sample_size=length(opaque_choice)
+  )
+
+ggplot(fci35_first_choice_data.agg, aes(x = condition, y = mean_opaque))+
+  geom_bar(stat="identity")
+```
+
+
+fit model
+
+```{r}
+mm1_choice_fcigr=glmer(opaque_choice ~ condition+z.trial+first_condition+
+                   (1+condition.c|Subject),
+             data=fci3_5_first_choice_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice_fcigr)
+drop1(mm1_choice_fcigr, test="Chisq") 
+```
+
+### pretest carry over effect
+
+fit model
+
+```{r}
+first_choice_data$firstchoice_pretest2<-trimws(first_choice_data$firstchoice_pretest2)
+first_choice_data<-first_choice_data%>%
+  mutate(firstchoice_pretest2 = fct_recode(as.factor(firstchoice_pretest2), "transparent" = "transparant"))
+levels(as.factor(first_choice_data$firstchoice_pretest2))
+mm1_choice_pretest=glmer(opaque_choice ~ firstchoice_pretest2+condition+z.trial+first_condition+
+                   (1+condition.c|Subject),
+             data=first_choice_data, family=binomial, 
+            control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(mm1_choice_pretest)
+drop1(mm1_choice_pretest, test="Chisq")
+```
+
+```{r}
+
+mm1_choice_pretest_drop1 <- drop1(mm1_choice_pretest, test="Chisq")%>% 
+  filter(!is.na(npar)) %>% 
+  add_row(npar = rep(NA,1),  .before = 1)
+```
+
+Check for colinearity
+
+```{r}
+library(car)
+xx=lm(opaque_choice ~ firstchoice_pretest2+condition+z.trial+first_condition,
+                    data=first_choice_data)
+vif(xx)
+```
+
+```{r}
+mm1_choice_pretest.ci=boot.glmm.pred(model.res=mm1_choice_pretest, excl.warnings=F,
+nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
+
+```
+
+#### output table
+
+```{r}
+mm1_choice_pretest_output_table <-
+  bind_cols(as.data.frame(summary(mm1_choice_pretest)$coeff),
+            mm1_choice_pretest_drop1,
+            mm1_choice_pretest.ci$ci.estimates) %>%
+  dplyr::select(
+    Estimate,
+    SE = `Std. Error`,
+    LowerCI = X2.5.,
+    UpperCI = X97.5.,
+    Chi2 = LRT,
+    df = npar,
+    p = `Pr(Chi)`,
+    z_wald = `z value`,
+    p_wald = `Pr(>|z|)`
+  ) %>% #
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
+  mutate(across(.cols = c(Estimate:Chi2), ~ format(round(.x, 2), nsmall = 2))) %>%
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+  mutate(p = replace(p, p == 0, "<0.001"))
+
+write.csv(mm1_choice_pretest_output_table, file = "saves/mm1_choice_pretest_output_table.csv")
+```
