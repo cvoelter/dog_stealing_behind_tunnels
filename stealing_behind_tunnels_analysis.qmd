@@ -16,6 +16,7 @@ source("./functions/glmm_stability.r")
 source("./functions/boot_glmm.r")
 source("./functions/boot_glmm2.r")
 source("./functions/glmmTMB_stability.r")
+source("./functions/extract_ranef_gmmTMB.r")
 source("./functions/boot_glmmTMB.r")
 #load("stealing_behind_tunnels_workspace.RData")
 ```
@@ -428,7 +429,7 @@ vif(xx)
 ```{r}
 boot.res.latency=boot.glmmtmb(mm1.latency, data=latency_fc_data2, nboots=1000, para=T, n.cores = "all-1", resol=100, level=0.95)
 
-boot.res.duration$ci.estimates$fe[1:6,]
+boot.res.latency$ci.estimates$fe[1:6,]
 
 
 
