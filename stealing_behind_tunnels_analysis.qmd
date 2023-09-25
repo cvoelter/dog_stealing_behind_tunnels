@@ -161,11 +161,19 @@ ggplot(data = first_choice_data_wo_sidebias_agg2, aes(x = as.factor(trial_w_con)
 ## Behavioral data: firts choice - condition comparison
 
 ```{r}
+#scale and center covariate
 first_choice_data$z.trial<-as.vector(scale(first_choice_data$trial_w_con, center = TRUE, scale=TRUE))
-
+#center factor
 first_choice_data$condition <- as.factor(first_choice_data$condition)
 levels(first_choice_data$condition)
 first_choice_data$condition.c=as.vector(scale(as.numeric(first_choice_data$condition==levels(as.factor(first_choice_data$condition))[2]), center=TRUE, scale= FALSE))
+
+#remove trial in which dog needed more than 2 minutes to make a choice
+str(first_choice_data)
+first_choice_data<-first_choice_data %>% 
+  filter(Subject!="Monty7"|trial!=1)
+
+table(first_choice_data$trial,first_choice_data$Subject)
 ```
 
 fit model
@@ -259,7 +267,7 @@ mm1_choice_test_io=glmer(opaque_choice ~ 1 +
             control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
 summary(mm1_choice_test_io)
 ```
-In the test condition, the dogs' performance did not deviate significantly from the chance value of 0.5 (z = -0.86, p = 0.391)
+In the test condition, the dogs' performance did not deviate significantly from the chance value of 0.5 (z = -0.76, p = 0.45)
 ```{r}
 mm1_choice_control_io=glmer(opaque_choice ~ 1 +
                    (1|Subject),
