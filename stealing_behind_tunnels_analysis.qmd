@@ -18,7 +18,7 @@ source("./functions/boot_glmm2.r")
 source("./functions/glmmTMB_stability.r")
 source("./functions/extract_ranef_gmmTMB.r")
 source("./functions/boot_glmmTMB.r")
-#load("stealing_behind_tunnels_workspace.RData")
+load("stealing_behind_tunnels_workspace.RData")
 ```
 
 ## load demographics
@@ -187,7 +187,7 @@ mm1_choice_drop1 <- drop1(mm1_choice, test="Chisq")%>%
 mm1_choice_drop1
 ```
 
-Check for colinearity
+Check for collinearity
 
 ```{r}
 library(car)
@@ -353,17 +353,6 @@ hist(latency_fc_data2$prop.latency)
 
 
 ```{r}
-#LL:failed attempt 1
-#xx.fe.re=fe.re.tab(fe.model="prop.latency~condition+ choice+trial_w_con +first_condition",
-#re="(1|Subject)", data=latency_fc_data2)
-
-#latency_fc_data2_model<-xx.fe.re$data
-#scale and centre covariate (trial)
-#latency_fc_data2_model$z.trial<-(latency_fc_data2_model$trial_w_con-mean(latency_fc_data2_model$trial_w_con))/sd(latency_fc_data2_model$trial_w_con)
-
-#Center factor (condition.test, for rs component, already dummy coded)
-#latency_fc_data2_model$condition.test.c=latency_fc_data2_model$condition.test-mean(latency_fc_data2_model$condition.test)
-
 #scale and center covariate
 latency_fc_data2$z.trial<-as.vector(scale(latency_fc_data2$trial_w_con, center = TRUE, scale=TRUE))
 #Center factor
@@ -401,7 +390,7 @@ overdisp.test(mm1.latency) #disp. parameter= 1.07, ok.
 ####Model output
 ```{r}
 #coefficients
-summary(mm1.latency)$coeff$cond[1:2,]
+summary(mm1.latency)$coeff$cond[,1:2]
 #tests
 drop1_mm1.latency<-drop1(mm1.latency, test="Chisq")%>%filter(Df!="")%>%add_row(Df = rep(NA,1),  .before = 1)
 drop1_mm1.latency
@@ -409,7 +398,6 @@ drop1_mm1.latency
 ####Model stability
 
 ```{r}
-
 mm1.latency.stab=glmmTMB.stab(model.res=mm1.latency, para=F, data=latency_fc_data2)
 
 mm1.latency.stab$summary[1:5, -1]
@@ -429,138 +417,46 @@ vif(xx)
 ```{r}
 boot.res.latency=boot.glmmtmb(mm1.latency, data=latency_fc_data2, nboots=1000, para=T, n.cores = "all-1", resol=100, level=0.95)
 
-boot.res.latency$ci.estimates$fe[1:6,]
-
-
-
-
-
-#LL: failed attempts
-# mm1.latency.for.ci<-glmmTMB(prop.latency ~ choice + condition + z.trial + first_condition + 
-#             (1|Subject)+
-#             (0+condition.c|Subject),
-#             family=beta_family, data=latency_fc_data2%>%filter(!is.na(prop.latency)),  control=glmmTMBControl(optCtrl=list(iter.max=100000000, eval.max=100000000)))
-# 
-# boot.mm1.latency<-boot.glmmtmb(mm1.latency.for.ci, data=as.data.frame(latency_fc_data2%>%filter(!is.na(prop.latency))),
-# nboots=1000, para=T, n.cores="all-1", resol=100, level=0.95 )
-# 
-# boot.mm1.beta$ci.estimates$fe
-# 
-# 
-# 
-# boot.mm1.latency<-boot.glmmtmb(mm1.latency, data=latency_fc_data2,
-# nboots=1000, para=T, n.cores="all-1", level=0.95 )
-# 
-# boot.mm1.latency$ci.estimates$fe
-# 
-# 
-# boot.m1.latency=boot.glmmtmb(m=mm1.latency, data=latency_fc_data2,
-# discard.non.conv=F, nboots=1000, para=T, resol=100,
-# level=0.95, n.cores="all-1")
-# 
-# round(boot.m1.endIP.largeIA$ci.estimates$fe[1:5,],2)
+boot.res.latency$ci.estimates$fe[1:5,]
 ```
-
-
-
-
-#### fit LMM LL:the asumption of normally and homogeneously distributed residuals are violated and hence I re-do this analysis fitting a beta model instead. Consider deleting this LMM from the final script
+#### output table - latency beta model
 ```{r}
-mm1.latency.int <- lme4::lmer(
-  log_latency ~ choice*condition + z.trial + first_condition +
-    (1 + condition.c | Subject),
-  data = latency_fc_data,
-  REML = FALSE
-)
+mm1_beta_latency_output_table <-
+  bind_cols(as.data.frame(summary(mm1.latency)$coeff$cond[,1:2]),
+            drop1_mm1.latency,
+            mm1.latency.stab$summary[1:5, -1],
+            boot.res.latency$ci.estimates$fe[1:5,]) %>%
+  dplyr::select(
+    Estimate,
+    SE = `Std. Error`,
+    Chi2 = LRT,
+    Df,
+    p = `Pr(>Chi)`,
+    LowerCI = X2.5.,
+    UpperCI = X97.5.,
+    min,
+    max
+  ) %>% 
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
+  mutate(across(.cols = c(Estimate:Df), ~ format(round(.x, 2), nsmall = 2))) %>%
+  mutate(across(.cols = c(LowerCI:max), ~ format(round(.x, 2), nsmall = 2))) %>% 
+  dplyr::mutate(p = replace(p, p == "0", "<.001"))
 
-drop1(mm1.latency.int, test="Chisq") # interaction between choice and condition not significant --> interaction is dropped to evaluate the main effects
+
+write.csv(mm1_beta_latency_output_table, file = "saves/mm1_beta_latency_output_table.csv")
 ```
+## Peeking
+
 ```{r}
-mm1.latency <- lme4::lmer(
-  log_latency ~ choice+condition + z.trial + first_condition +
-    (1 + condition.c | Subject),
-  data = latency_fc_data,
-  REML = FALSE
-)
-summary(mm1.latency)
-```
+peeking_data <- loopy.data %>%
+  filter(Behaviour == "peeking")
 
-Assumptions
-```{r}
-diagnostics.plot(mm1.latency, size.fac=2)
-
-ranef.diagn.plot(mm1.latency)
-```
-
-Individual fixed effects
-```{r}
-library(lmerTest)
-
-mm1.latency.reml<-lmerTest::lmer(
-  log_latency ~ choice + condition + z.trial + first_condition +
-    (1 + condition.c | Subject),
-  data = latency_fc_data,
-  REML=TRUE)
-
-summary(mm1.latency.reml)$coefficients
+levels(as.factor(peeking_data$Value)) #dogs never peeked behind the opaque tunnel
 ```
 
 
 
-Colinearity checks
-```{r}
-library(car)
-xx=lm(log_latency ~ choice + condition + z.trial + first_condition,
-  data = latency_fc_data)
-vif(xx)
-```
-relative model complexity
-```{r}
-length(residuals(mm1.latency))/
-(length(fixef(mm1.latency))+
-nrow(as.data.frame(summary(mm1.latency)$varcor)))
-```
-model stability
-To evaluate model stability we removed each level of the random intercept subject ID one at a time and compared the resulting estimate. This revealed the model to be stable with respect to the fixed effects.
-```{r}
 
-mm1.latency.stab=glmm.model.stab(model.res=mm1.latency, contr=NULL, para=F, data=NULL)
-
-mm1.latency.stab$summary
-
-m.stab.plot(round(mm1.latency.stab$summary[, -1], 3))
-```
---> model stable with regard to the fixed effects
-
-Confidence intervals
-```{r}
-boot.mm1.latency=boot.lmer(mm1.latency,
-nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
-
-mm1.latency_boot_ci<-boot.mm1.latency$ci.estimates
-```
-Effect size
-```{r}
-library(MuMIn)
-r.squaredGLMM(mm1.latency)
-```
-
-
-#### output table - latency
-```{r}
-model_table_mm1.latency <- bind_cols(as.data.frame(summary(mm1.latency)$coefficients),
-                         summary(mm1.latency.reml)$coefficients[,3:5],
-                         mm1.latency_boot_ci,
-                         mm1.latency.stab$summary[1:5, -1]) %>% 
-  dplyr::select(Estimate, SE = `Std. Error`, df, t_value = `t value...5`, p = `Pr(>|t|)`, LowerCI = X2.5., UpperCI = X97.5., min, max) %>%
-  mutate(across(.cols = c(p), ~ round(.x, 3))) %>% 
-  mutate(across(.cols = c(Estimate:t_value), ~ round(.x, 2))) %>% 
-  mutate(across(.cols = c(LowerCI:max), ~ round(.x, 2))) %>% 
-  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
-mutate(p=replace(p, p==0, "<0.001"))
-
-write.csv(model_table_mm1.latency , file = "saves/latency_mm1_output_table.csv")
-```
 
 
 ## second choice latency
@@ -568,8 +464,8 @@ write.csv(model_table_mm1.latency , file = "saves/latency_mm1_output_table.csv")
 #### Model preparation
 ```{r}
 latency_sc_data<- latency_sc_data%>%
-  select(Subject, latency, condition, trial_w_con, first_condition)%>%
-  full_join(first_choice_data%>%select(Subject, opaque_choice, condition, trial_w_con, first_condition))%>%
+  dplyr::select(Subject, latency, condition, trial_w_con, first_condition)%>%
+  full_join(first_choice_data%>%dplyr::select(Subject, opaque_choice, condition, trial_w_con, first_condition))%>%
   mutate(choice = fct_recode(as.factor(opaque_choice), "opaque" ="1", "clear" ="0"))
 
 
