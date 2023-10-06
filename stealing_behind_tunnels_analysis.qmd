@@ -11,6 +11,7 @@ editor: visual
 library(tidyverse)
 library(lme4)
 library(multcomp)
+library(ggplot2)
 source("./functions/diagnostic_fcns.r")
 source("./functions/glmm_stability.r")
 source("./functions/boot_glmm.r")
@@ -119,14 +120,21 @@ ggplot(data = first_choice_data.agg2, aes(x = as.factor(trial_w_con), y= mean_op
 
 ```
 ```{r}
-ggplot(data = first_choice_data.agg3, aes(x = condition, y= mean_opaque))+
-    geom_bar(stat = "identity", position=position_dodge(.9))+
-  geom_errorbar(aes(ymin = mean_opaque - se_opaque, ymax = mean_opaque + se_opaque  ),  position=position_dodge(.9), width=0.4)+
-  theme_bw() +
-  ylim(0, 1) + 
-  xlab(NULL) + 
-  ylab ("Mean proportion opaque choice")+ 
-  facet_wrap(~first_condition)
+first_choice_data.agg.fp <- first_choice_data %>%
+  group_by(condition) %>%
+  summarise(mean_opaque_choice = mean(opaque_choice), se_opaque_choice = sd(opaque_choice)/sqrt(length(opaque_choice)))
+
+
+plot_first_choice<-ggplot(data = first_choice_data.agg.fp, aes(x = condition, y= mean_opaque_choice))+
+    geom_bar(stat = "identity", alpha=.8)+
+  geom_errorbar(aes(ymin = mean_opaque_choice - se_opaque_choice, ymax = mean_opaque_choice + se_opaque_choice),width=0.4
+                )+
+  geom_hline(yintercept = 0.5, lty=2)+
+  theme_classic() +
+  ylim(0, 0.75) + 
+  xlab("Condition") + 
+  ylab("Probability to steal behind opaque first")
+plot_first_choice
 ```
 ## remove dogs that always chose same side
 ```{r}
@@ -303,6 +311,7 @@ latency_fc_data%>%filter(Subject=="Sophi")
 ```
 
 aggregate latency data
+##Plot latency
 
 ```{r}
 latency_data_agg <- latency_data %>%
@@ -312,7 +321,33 @@ latency_data_agg <- latency_data %>%
 latency_data_agg2 <- latency_data_agg %>%
   group_by(condition, Value) %>%
   summarise(mean_latency2 = mean(mean_latency), se_latency = sd(mean_latency)/sqrt(length(mean_latency)))
+
+latency_data_fp <- latency_data %>%
+  filter(Value=="latency") %>% 
+  group_by(Subject,condition) %>%
+  summarise(mean_latency = mean(latency), se_latency = sd(latency)/sqrt(length(latency)))
+
+latency_plot<-ggplot(latency_data_fp, aes(x = condition, y = mean_latency)) + 
+  geom_boxplot()+
+  geom_jitter(alpha=.5, width=.4)+
+  #geom_line(aes(group = Subject), alpha=0.3, lty=2) +
+  ylab("Latency to first choice (s)")+
+  xlab("Condition")+
+  geom_segment(aes(x = 1, y = 95, xend = 2, yend = 95))+
+  geom_text(label="*", x=1.5, y=100,size=7)+
+  theme_classic()
+latency_plot
+
+
+library(cowplot)
+Fig5<-plot_grid(plot_first_choice, latency_plot, nrow=1, labels=c("A)", "B)"))
+Fig5
 ```
+
+```{r}
+ggsave(Fig5, filename = "graphics/Fig5.png", width = 9, height=6, scale=0.6)
+```
+
 
 ```{r}
 ggplot(latency_data_agg, aes(x = condition, y = mean_latency)) + 
