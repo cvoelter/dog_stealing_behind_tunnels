@@ -1,0 +1,114 @@
+---
+title: "Inter-rater reliability stealing behind tunnels"
+author: "Lucrezia Lonardo"
+format: html
+editor: visual
+---
+
+```{r}
+#set up
+rm(list=ls())
+#install.packages("irr")
+library(irr)
+library(tidyverse)
+library(zoo)
+```
+
+```{r}
+#Load data files
+#first scoring (used for analyses)
+first.scoring.data <- read.csv("data/scoringproject_83_stealing_behind_tunnels_scoring.csv") %>%
+  mutate(Subject = str_replace_all(Subject, " ", ""))%>%
+  dplyr::select(Scoring:trial) %>%
+  mutate(duration = Stop - Start)
+
+#Aggregated data 1st scoring
+first.scoring.data.red<-first.scoring.data %>% 
+filter(Subject %in% c("Lilo3", "Zira", "Balou4", "Nele4", "Principessa", "Tofu", "Dorli", "Rose", "Jay2", "Kira", "Yuki5", "Sammy11", "Sophi", "Maggy5", "Django2", "Sunny13", "Poppy3", "Cory")) %>% 
+  filter(!is.na(trial))
+
+
+agg.data1<-first.scoring.data.red %>%
+  droplevels()%>%
+  group_by(Subject, trial, Behaviour, Value)%>%
+  summarise(sum_duration=sum(duration))%>%
+  ungroup()%>%
+  droplevels()%>%
+  complete(Subject, trial, Value, fill=list(sum.duration=0)) #fill in 0s
+  
+
+#Latency 1
+agg.data.latency1<-agg.data1 %>% 
+  filter(Value=="latency") # keep only latencies to make first choice
+
+ 
+levels(as.factor(agg.data.latency1$Behaviour))
+levels(as.factor(agg.data.latency1$Subject))
+
+# latency as coded by coder 1
+agg.data.latency1$sum_duration 
+
+
+#First choice 1st scorer
+agg.data.first.choice1<-agg.data1 %>% 
+  filter(Behaviour=="first_choice") %>%  # keep only first choices
+  select(Subject:Behaviour)
+```
+
+
+```{r}
+#second scoring (30% of videos)
+second.scoring.data<- read.csv("data/inter-rater_reliability/scoringproject_102_stealing_behind_tunnels_reliability.csv") %>% 
+  mutate(Subject = str_replace_all(Subject, " ", ""))%>%
+  dplyr::select(Scoring:Value) %>%
+  mutate(duration = Stop - Start) %>% 
+  mutate(trial=ifelse(Behaviour=="trial", Value, NA)) %>% 
+  mutate(trial=na.locf(trial))
+
+agg.data2<-second.scoring.data %>%
+  droplevels()%>%
+  group_by(Subject, trial, Behaviour, Value)%>%
+  summarise(sum_duration2=sum(duration))%>%
+  ungroup()%>%
+  droplevels()%>%
+  complete(Subject, trial, Value, fill=list(sum.duration=0))
+
+#Latency 2nd scorer
+agg.data.latency2<-agg.data2 %>% 
+  filter(Value=="latency") # keep only latencies to make first choice
+
+latencies<-data.frame(agg.data.latency1$sum_duration, agg.data.latency2$sum_duration2)
+
+#First choice 2nd scorer
+agg.data.first.choice2<-agg.data2 %>% 
+  filter(Behaviour=="first_choice") %>%  # keep only first choices
+  select(Subject:Behaviour)
+```
+
+```{r}
+#Agreement on Latency: continuous variable, two-way random effects model, single rater, consistency (not interested in absolute values)
+#ICC=Interclass correlation coefficient
+
+icc(
+  latencies, model = "twoway", 
+  type = "consistency", unit = "single"
+  )
+
+#But this assumes every obs is a subject
+
+shapiro.test(agg.data.latency1$sum_duration)
+shapiro.test(agg.data.latency2$sum_duration2) #neither is normally distributed
+
+#Spearman
+cor.test(agg.data.latency1$sum_duration, agg.data.latency2$sum_duration2, method= "spearman", use="complete.obs")
+length(agg.data.latency1$sum_duration)
+```
+```{r}
+#Agreement on first choice
+#Cohen's Kappa
+
+first_choices<-data.frame(agg.data.first.choice1$Value, agg.data.first.choice2$Value)
+
+kappa2(first_choices)
+```
+
