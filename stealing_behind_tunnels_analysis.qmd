@@ -166,7 +166,7 @@ ggplot(data = first_choice_data_wo_sidebias_agg2, aes(x = as.factor(trial_w_con)
 
 ```
 
-## Behavioral data: firts choice - condition comparison
+## Behavioral data: first choice - condition comparison
 
 ```{r}
 #scale and center covariate
@@ -687,7 +687,7 @@ mutate(p=replace(p, p==0, "<0.001"))
 write.csv(model_table_mm1.sc.latency , file = "saves/sc_latency_mm1_output_table.csv")
 ```
 
-
+##LL: used from here until line 817
 ## subgroups: terrier, etc
 ### terrier
 #### choice(terrier)
@@ -778,6 +778,14 @@ mm2_choice_terrier.ci=boot.glmm.pred(model.res=mm2_choice_terrier, excl.warnings
 nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
 
 ```
+#### stability (terrier)
+```{r}
+m.stab.fc.terrier <- glmm.model.stab(model.res = mm2_choice_terrier)
+m.stab.fc.terrier$detailed$warnings
+as.data.frame(round(m.stab.fc.terrier$summary[1:5, -1], 2))
+
+m.stab.plot(round(m.stab.fc.terrier$summary[, -1], 2))
+```
 
 #### output table
 
@@ -785,22 +793,25 @@ nboots=1000, para=T, n.cores="all-1", resol=1000, level=0.95)
 mm2_terrier_choice_output_table <-
   bind_cols(as.data.frame(summary(mm2_choice_terrier)$coeff),
             mm2_choice_terrier_drop1,
-            mm2_choice_terrier.ci$ci.estimates) %>%
-  select(
+            mm2_choice_terrier.ci$ci.estimates,
+            m.stab.fc.terrier$summary[1:5, -1]) %>%
+   dplyr::select(
     Estimate,
     SE = `Std. Error`,
-    LowerCI = X2.5.,
-    UpperCI = X97.5.,
     Chi2 = LRT,
     df = npar,
     p = `Pr(Chi)`,
-    z_wald = `z value`,
-    p_wald = `Pr(>|z|)`
+    LowerCI = X2.5.,
+    UpperCI = X97.5.,
+    min,
+    max
   ) %>% #
   mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
-  mutate(across(.cols = c(Estimate:Chi2), ~ format(round(.x, 2), nsmall = 2))) %>%
+  mutate(across(.cols = c(Estimate:df), ~ format(round(.x, 2), nsmall = 2))) %>%
+  mutate(across(.cols = c(LowerCI:max), ~ format(round(.x, 2), nsmall = 2))) %>% 
   #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
   mutate(p = replace(p, p == 0, "<0.001"))
+
 
 write.csv(mm2_terrier_choice_output_table, file = "saves/mm2_choice_terrier_output_table.csv")
 ```
@@ -983,10 +994,82 @@ write.csv(model_table_mm1.latency.terrier , file = "saves/latency_mm1_terrier_ou
 ```
 
 
+#First trial only  - analysis of first choice
+```{r}
+#the dog that needed more than 120 s to make his first choice in his first trial (but started moving within 120 s) is included in this analysis.
+first_choice_data_with60subjcs <- loopy.data %>%
+  filter(Behaviour == "first_choice")
+
+first_trial_data<-first_choice_data_with60subjcs %>% 
+  filter(trial==1)
+length(levels(as.factor(first_trial_data$Subject)))
+```
+```{r}
+#prepare data for model
+#center factor
+first_trial_data$condition <- as.factor(first_trial_data$condition)
+levels(first_trial_data$condition)
+first_trial_data$condition.c=as.vector(scale(as.numeric(first_trial_data$condition==levels(as.factor(first_trial_data$condition))[2]), center=TRUE, scale= FALSE))
+
+```
+
+```{r}
+#fit model
+mm1_choice_first_trial=glm(opaque_choice ~ condition,
+             family=binomial,
+             data=first_trial_data)
+summary(mm1_choice_first_trial)
+drop1(mm1_choice_first_trial, test="Chisq")
+```
+
+```{r}
+#model stability
+
+my.dfbeta<-function(m){
+xx=cbind(coef(m), coef(m)+
+t(apply(X=dfbeta(m), MARGIN=2, FUN=range)))
+colnames(xx)=c("orig", "min", "max")
+return(xx)
+}
+mm1_first_trial_stab<-my.dfbeta(mm1_choice_first_trial)
+mm1_first_trial_stab[,-1]
+```
+```{r}
+#confidence intervals
+cbind(orig=coef(mm1_choice_first_trial), confint(object=mm1_choice_first_trial))
+cis.first.trial<-confint(object=mm1_choice_first_trial)
+```
 
 
+```{r}
+#results
+round(summary(mm1_choice_first_trial)$coefficients,3)
+```
 
+```{r}
+#output table - first trial
+mm1_choice_first_trial_output_table <-
+  bind_cols(as.data.frame(summary(mm1_choice_first_trial)$coefficients),
+            cis.first.trial,
+            mm1_first_trial_stab[,-1]) %>%
+  dplyr::select(
+    Estimate,
+    SE = `Std. Error`,
+    z_wald = `z value`,
+    p_wald = `Pr(>|z|)`,
+    LowerCI = `2.5 %`,
+    UpperCI = `97.5 %`,
+    min,
+    max
+  ) %>% #
+  mutate(across(.cols = c(p_wald), ~ format(round(.x, 3), nsmall = 3))) %>%
+  mutate(across(.cols = c(Estimate:z_wald), ~ format(round(.x, 2), nsmall = 2))) %>%
+  mutate(across(.cols = c(LowerCI:max), ~ format(round(.x, 2), nsmall = 2))) %>%
+  #mutate(across(Chi2:p, ~replace_na(.x, "")))%>%
+  mutate(p_wald = replace(p_wald, p_wald == 0, "<0.001"))
 
+write.csv(mm1_choice_first_trial_output_table, file = "saves/mm1_choice_first_trial_output_table.csv")
+```
 
 
 
