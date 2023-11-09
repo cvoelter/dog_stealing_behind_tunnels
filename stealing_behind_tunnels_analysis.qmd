@@ -1071,12 +1071,6 @@ mm1_choice_first_trial_output_table <-
 write.csv(mm1_choice_first_trial_output_table, file = "saves/mm1_choice_first_trial_output_table.csv")
 ```
 
-
-
-
-
-
-
 ### independent breeds
 
 #### According to Heberlein
