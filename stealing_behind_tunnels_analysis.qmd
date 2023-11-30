@@ -64,10 +64,9 @@ first_choice_data <- loopy.data %>%
 table(first_choice_data$Subject, first_choice_data$condition)
 table(first_choice_data$Subject, first_choice_data$opaque_choice)
 table(first_choice_data$Subject, first_choice_data$trial) #three missing trials --> dogs did not make a choice
-
-#LL: I only count 2 trials
+#which subjects (rows) in the above table have missing trials?
 xx<-table(first_choice_data$Subject, first_choice_data$trial)
-sum(apply(xx<1, MARGIN=1, FUN=sum)) #which subjects (rows) in the above table have missing trials?
+sum(apply(xx<1, MARGIN=1, FUN=sum)) #2 subjects (each missing 1 test trial) + 1 trial in which the dog needed longer than 120 s to make a choice
 
 
 length(levels(as.factor(first_choice_data$Subject)))
