@@ -200,6 +200,12 @@ mm1_choice_drop1 <- drop1(mm1_choice, test="Chisq")%>%
   filter(!is.na(npar)) %>% 
   add_row(npar = rep(NA,1),  .before = 1)
 mm1_choice_drop1
+
+
+mm1_choice_aic<-drop1(mm1_choice, test="Chisq")[1, "AIC"]
+mm1_choice_aic_drop1<-drop1(mm1_choice, test="Chisq")[, "AIC"][-1]
+mm1_choice_aic_drop1_delta<- c(NA, round(mm1_choice_aic - mm1_choice_aic_drop1, 2))
+mm1_choice_aic_drop1_delta_df <- data.frame(delta_aic = mm1_choice_aic_drop1_delta)
 ```
 
 Check for collinearity
@@ -232,7 +238,8 @@ mm1_choice_output_table <-
   bind_cols(as.data.frame(summary(mm1_choice)$coeff),
             mm1_choice_drop1,
             mm1_choice.ci$ci.estimates,
-            m.stab.fc$summary[1:4, -1]) %>%
+            m.stab.fc$summary[1:4, -1],
+            mm1_choice_aic_drop1_delta_df) %>%
   dplyr::select(
     Estimate,
     SE = `Std. Error`,
@@ -242,7 +249,8 @@ mm1_choice_output_table <-
     LowerCI = X2.5.,
     UpperCI = X97.5.,
     min,
-    max
+    max,
+    delta_aic
   ) %>% #
   mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
   mutate(across(.cols = c(Estimate:df), ~ format(round(.x, 2), nsmall = 2))) %>%
@@ -436,6 +444,11 @@ summary(mm1.latency)$coeff$cond[,1:2]
 #tests
 drop1_mm1.latency<-drop1(mm1.latency, test="Chisq")%>%filter(Df!="")%>%add_row(Df = rep(NA,1),  .before = 1)
 drop1_mm1.latency
+
+mm1_latency_aic<-drop1(mm1.latency, test="Chisq")[1, "AIC"]
+mm1_latency_aic_drop1<-drop1(mm1.latency, test="Chisq")[, "AIC"][-1]
+mm1_latency_aic_drop1_delta<- c(NA, round(mm1_latency_aic - mm1_latency_aic_drop1, 2))
+mm1_latency_aic_drop1_delta_df <- data.frame(delta_aic = mm1_latency_aic_drop1_delta)
 ```
 ####Model stability
 
@@ -467,7 +480,8 @@ mm1_beta_latency_output_table <-
   bind_cols(as.data.frame(summary(mm1.latency)$coeff$cond[,1:2]),
             drop1_mm1.latency,
             mm1.latency.stab$summary[1:5, -1],
-            boot.res.latency$ci.estimates$fe[1:5,]) %>%
+            boot.res.latency$ci.estimates$fe[1:5,],
+            mm1_latency_aic_drop1_delta_df) %>%
   dplyr::select(
     Estimate,
     SE = `Std. Error`,
@@ -477,7 +491,8 @@ mm1_beta_latency_output_table <-
     LowerCI = X2.5.,
     UpperCI = X97.5.,
     min,
-    max
+    max,
+    delta_aic
   ) %>% 
   mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall = 3))) %>%
   mutate(across(.cols = c(Estimate:Df), ~ format(round(.x, 2), nsmall = 2))) %>%
